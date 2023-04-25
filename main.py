@@ -485,6 +485,10 @@ if __name__ == "__main__":
             train, test, train_model_input, test_model_input, lf_columns, df_columns = get_data(args)
             model = get_model(args, linear_feature_columns=lf_columns, dnn_feature_columns=df_columns, history_feature_list=None)
         # model = get_model(args, lf_columns, df_columns)
+        print(train.size, test.size, len(train_model_input), len(test_model_input), len(lf_columns), len(df_columns))
+        train_size = train.size
+        test_size = test.size
+        
         model.compile(args, "adam", "binary_crossentropy",
                       metrics=["auc", "acc"])
         history, best_model = model.fit(train_model_input, train['click'].values, batch_size=args.train_batch_size, epochs=args.epochs, verbose=2,
@@ -493,12 +497,23 @@ if __name__ == "__main__":
         pred_ans = best_model.predict(test_model_input, args.test_batch_size)
         print("test LogLoss", round(log_loss(test['click'].values, pred_ans), 4))
         print("test AUC", round(roc_auc_score(test['click'].values, pred_ans), 4))
-        torch.save({
-            'model_state_dict': best_model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            }, "model_best_nlt.ckpt")
         #torch.save(best_model.state_dict(), "model_best_nlt.ckpt") 
-        torch.save(best_model.state_dict(), "model_best_nlt.pt") 
+        torch.save(best_model.state_dict(), "model_best_nlt.ckpt") 
+        
+        train, test, train_model_input, test_model_input, lf_columns, df_columns = ctrdataset('data_longtail.csv')
+        train = train.head(train_size)
+        test = test.head(test_size)
+        print(train.size, test.size, len(train_model_input), len(test_model_input), len(lf_columns), len(df_columns))
+
+        for name, para in model.named_parameters():
+            para.requires_grad = True
+        history, best_model = model.fit(train_model_input, train['click'].values, batch_size=args.train_batch_size, epochs=args.epochs, verbose=2,
+                            validation_split=0.1111)
+
+        pred_ans = best_model.predict(test_model_input, args.test_batch_size)
+        print("test LogLoss", round(log_loss(test['click'].values, pred_ans), 4))
+        print("test AUC", round(roc_auc_score(test['click'].values, pred_ans), 4))
+        torch.save(best_model.state_dict(), "model_best.ckpt")
         
     elif args.task_name == 'ctr2':
         if args.model_name == 'din' or args.model_name == 'dien':
